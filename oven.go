@@ -2,21 +2,9 @@ package main
 
 import "fmt"
 
-/*
-Args:
-
-	-c config: Specify path to config file (default: clay.yaml)
-	-d docs-dir: Specify path to documents directory (default: ./docs)
-	-o output: Specify output directory (default: ./output)
-	-f force: Overwrite existing files
-	-fm folder-meta: Specify path to folder icons file (default: dir-meta.yaml)
-	-nc no-confirm: Do not ask for confirmation before overwriting files
-*/
-
 func RunOven(args map[string]string) {
 	var config, docsDir, output, folderMeta string
 
-	force := args["-f"] == "true"
 	noConfirm := args["-nc"] == "true"
 
 	if val, ok := args["-c"]; ok {
@@ -47,7 +35,6 @@ func RunOven(args map[string]string) {
 	fmt.Printf("\nConfig file:        %s\n", config)
 	fmt.Printf("Doc directory:      %s\n", docsDir)
 	fmt.Printf("Output directory:   %s\n", output)
-	fmt.Printf("Force overwrite:    %v\n", force)
 	fmt.Printf("Folder meta file:  %s\n", folderMeta)
 	fmt.Printf("No confirm:         %v\n", noConfirm)
 

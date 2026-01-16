@@ -14,7 +14,7 @@ Args:
 	-d docs-dir: Specify path to documents directory (default: ./docs)
 	-o output: Specify output directory (default: ./output)
 	-f force: Overwrite existing files
-	-fm folder-meta: Specify path to folder icons file (default: dir-meta.yaml)
+	-fm folder-meta: Specify path to folder meta file (default: dir-meta.yaml)
 	-nc no-confirm: Do not ask for confirmation before overwriting files
 */
 
@@ -112,13 +112,6 @@ func defineArgs() []Arg {
 		HasValue: true,
 	}
 
-	forceArg := Arg{
-		ArgName:  "-f",
-		ArgDesc:  "Overwrite existing files",
-		FullArg:  "--force",
-		HasValue: false,
-	}
-
 	folderIconsArg := Arg{
 		ArgName:  "-fm",
 		ArgDesc:  "Specify path to folder meta file (default: dir-meta.yaml)",
@@ -138,7 +131,6 @@ func defineArgs() []Arg {
 		configArg,
 		docsDirArg,
 		outputArg,
-		forceArg,
 		folderIconsArg,
 		noConfirmArg,
 	}
