@@ -1,0 +1,115 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+          - goos: windows
+            goarch: amd64
+            suffix: windows-amd64.exe
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Build Binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: go build -ldflags="-s -w" -o clay-oven-${{ matrix.suffix }} ./src/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clay-oven-${{ matrix.suffix }}
+          path: clay-oven-${{ matrix.suffix }}
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Get Next Version
+        id: get_version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          latest=$(gh release view --json tagName -q '.tagName' 2>/dev/null || echo "v0.0.0")
+          # Strip leading 'v'
+          version="${latest#v}"
+          # Split into major.minor.patch
+          IFS='.' read -r major minor patch <<< "$version"
+          # Increment patch
+          patch=$((patch + 1))
+          next="v${major}.${minor}.${patch}"
+          echo "version=${next}" >> "$GITHUB_OUTPUT"
+          echo "Next version: ${next}"
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List Artifacts
+        run: ls -lR artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Clay Oven ${{ steps.get_version.outputs.version }}
+          body: |
+            ## Clay Oven ${{ steps.get_version.outputs.version }}
+
+            Automated release from commit ${{ github.sha }}
+
+            ### Downloads
+            | Platform | Architecture | File |
+            |----------|-------------|------|
+            | Linux    | x86_64      | `clay-oven-linux-amd64` |
+            | Linux    | ARM64       | `clay-oven-linux-arm64` |
+            | macOS    | x86_64      | `clay-oven-darwin-amd64` |
+            | macOS    | ARM64 (Apple Silicon) | `clay-oven-darwin-arm64` |
+            | Windows  | x86_64      | `clay-oven-windows-amd64.exe` |
+          files: artifacts/*
+          draft: false
+          prerelease: false
+          make_latest: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
