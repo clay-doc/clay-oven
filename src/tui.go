@@ -237,7 +237,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.done = true
 		m.dlActive = false
 		m.taskActive = false
-		return m, nil
+		return m, tea.Quit
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -352,8 +352,6 @@ func (m tuiModel) View() string {
 	if m.done {
 		b.WriteString("\n")
 		b.WriteString(styleSuccess.Render("  " + iconSuccess + " All done!"))
-		b.WriteString("\n")
-		b.WriteString(styleDim.Render("  Press any key to exit."))
 		b.WriteString("\n")
 	}
 

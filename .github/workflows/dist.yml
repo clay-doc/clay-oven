@@ -68,7 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          latest=$(gh release view --json tagName -q '.tagName' 2>/dev/null || echo "v0.0.0")
+          latest=$(gh release view --json tagName -q '.tagName' 2>/dev/null || echo "v0.9.9")
           # Strip leading 'v'
           version="${latest#v}"
           # Split into major.minor.patch
