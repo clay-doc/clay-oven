@@ -353,6 +353,8 @@ func (m tuiModel) View() string {
 		b.WriteString("\n")
 		b.WriteString(styleSuccess.Render("  " + iconSuccess + " All done!"))
 		b.WriteString("\n")
+		b.WriteString(styleDim.Render("  Press any key to exit."))
+		b.WriteString("\n")
 	}
 
 	return b.String()
