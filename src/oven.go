@@ -162,6 +162,36 @@ func RunOven(args map[string]string, sink OutputSink) {
 	}
 	sink.Success(fmt.Sprintf("Config copied to: %s", configDest))
 
+	// --- Copy assets to publish/public ---
+	sink.Header("Copy Assets")
+
+	assets := collectAssets(cfg)
+	for _, asset := range assets {
+		sink.Info(fmt.Sprintf("Asset: %s", asset))
+	}
+
+	if !noConfirm {
+		if !sink.Confirm("Copy asset files?") {
+			sink.Warn("Asset copy cancelled")
+			sink.Done()
+			return
+		}
+	}
+
+	for _, asset := range assets {
+		assetDest := filepath.Join(publicDir, asset)
+		if err := os.MkdirAll(filepath.Dir(assetDest), 0755); err != nil {
+			sink.Error(fmt.Sprintf("Could not create directory for asset %s: %v", asset, err))
+			sink.Done()
+			return
+		}
+		if err := copyFile(asset, assetDest); err != nil {
+			sink.Warn(fmt.Sprintf("Could not copy asset %s: %v", asset, err))
+		} else {
+			sink.Success(fmt.Sprintf("Copied asset: %s", asset))
+		}
+	}
+
 	// --- Copy markdown files to publish/public ---
 	sink.Header("Copy Docs")
 	docsDestDir := filepath.Join(publicDir, "docs")
@@ -435,6 +465,22 @@ func copyFile(src, dst string) error {
 	}
 
 	return nil
+}
+
+// collectAssets returns a deduplicated list of asset file paths referenced
+// in the config (favicon and navbar logo).
+func collectAssets(cfg Config) []string {
+	seen := map[string]bool{}
+	var assets []string
+
+	for _, path := range []string{cfg.Favicon, cfg.Navbar.Logo} {
+		if path != "" && !seen[path] {
+			seen[path] = true
+			assets = append(assets, path)
+		}
+	}
+
+	return assets
 }
 
 // copyMarkdownFiles walks srcDir and copies all .md files into destDir,
