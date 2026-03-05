@@ -37,8 +37,8 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Download Dependencies
-        run: go mod download
+      - name: Tidy Dependencies
+        run: go mod tidy
 
       - name: Build Binary
         env:
