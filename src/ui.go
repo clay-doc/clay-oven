@@ -13,22 +13,22 @@ var Verbose bool
 
 var (
 	// Colors
-	colorCyan    = lipgloss.Color("#00D7FF")
-	colorGreen   = lipgloss.Color("#00FF87")
-	colorYellow  = lipgloss.Color("#FFD700")
-	colorRed     = lipgloss.Color("#FF5F5F")
-	colorDim     = lipgloss.Color("#6C6C6C")
-	colorMagenta = lipgloss.Color("#FF87FF")
-	colorWhite   = lipgloss.Color("#FFFFFF")
+	colorPrimary   = lipgloss.Color("#009764")
+	colorSecondary = lipgloss.Color("#1DC88E")
+	colorGreen     = lipgloss.Color("#00FF87")
+	colorYellow    = lipgloss.Color("#FFD700")
+	colorRed       = lipgloss.Color("#FF5F5F")
+	colorDim       = lipgloss.Color("#6C6C6C")
+	colorWhite     = lipgloss.Color("#FFFFFF")
 
 	// Styles
 	styleBanner = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(colorCyan)
+			Foreground(colorSecondary)
 
 	styleHeader = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(colorMagenta).
+			Foreground(colorPrimary).
 			PaddingLeft(1).
 			PaddingRight(1)
 
@@ -51,7 +51,7 @@ var (
 			Foreground(colorDim)
 
 	styleKey = lipgloss.NewStyle().
-			Foreground(colorCyan).
+			Foreground(colorSecondary).
 			Bold(true)
 
 	styleVal = lipgloss.NewStyle().

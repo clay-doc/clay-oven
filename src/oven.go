@@ -355,7 +355,7 @@ func unzipFile(src, dest string, sink OutputSink) error {
 		return fmt.Errorf("creating destination directory: %w", err)
 	}
 
-	for _, f := range r.File {
+	for i, f := range r.File {
 		fPath := filepath.Join(dest, f.Name)
 
 		// Prevent zip slip
@@ -367,6 +367,7 @@ func unzipFile(src, dest string, sink OutputSink) error {
 			if err := os.MkdirAll(fPath, f.Mode()); err != nil {
 				return fmt.Errorf("creating directory: %w", err)
 			}
+			sink.TaskProgress("Extracting", i+1, len(r.File))
 			continue
 		}
 
@@ -395,6 +396,7 @@ func unzipFile(src, dest string, sink OutputSink) error {
 		rc.Close()
 		outFile.Close()
 
+		sink.TaskProgress("Extracting", i+1, len(r.File))
 		sink.Verbose(fmt.Sprintf("Extracted: %s", f.Name))
 	}
 
@@ -404,6 +406,18 @@ func unzipFile(src, dest string, sink OutputSink) error {
 // replaceInDir walks the given directory and replaces all occurrences of
 // oldStr with newStr in every file.
 func replaceInDir(dir, oldStr, newStr string, sink OutputSink) error {
+	// First pass: count files
+	var total int
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		total++
+		return nil
+	})
+
+	// Second pass: replace with progress
+	current := 0
 	return filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -418,25 +432,25 @@ func replaceInDir(dir, oldStr, newStr string, sink OutputSink) error {
 		}
 
 		content := string(data)
-		if !strings.Contains(content, oldStr) {
-			return nil
+		if strings.Contains(content, oldStr) {
+			replaced := strings.ReplaceAll(content, oldStr, newStr)
+
+			// Clean up any double slashes caused by the replacement (but preserve "://")
+			for strings.Contains(replaced, "//") {
+				replaced = strings.ReplaceAll(replaced, "://", "::PROTO::")
+				replaced = strings.ReplaceAll(replaced, "//", "/")
+				replaced = strings.ReplaceAll(replaced, "::PROTO::", "://")
+			}
+
+			if err := os.WriteFile(path, []byte(replaced), info.Mode()); err != nil {
+				return fmt.Errorf("writing %s: %w", path, err)
+			}
+
+			sink.Verbose(fmt.Sprintf("Replaced in: %s", path))
 		}
 
-		replaced := strings.ReplaceAll(content, oldStr, newStr)
-
-		// Clean up any double slashes caused by the replacement (but preserve "://")
-		for strings.Contains(replaced, "//") {
-			// Protect protocol prefixes like "https://"
-			replaced = strings.ReplaceAll(replaced, "://", "::PROTO::")
-			replaced = strings.ReplaceAll(replaced, "//", "/")
-			replaced = strings.ReplaceAll(replaced, "::PROTO::", "://")
-		}
-
-		if err := os.WriteFile(path, []byte(replaced), info.Mode()); err != nil {
-			return fmt.Errorf("writing %s: %w", path, err)
-		}
-
-		sink.Verbose(fmt.Sprintf("Replaced in: %s", path))
+		current++
+		sink.TaskProgress("Replacing placeholders", current, total)
 		return nil
 	})
 }
@@ -486,6 +500,20 @@ func collectAssets(cfg Config) []string {
 // copyMarkdownFiles walks srcDir and copies all .md files into destDir,
 // preserving the directory structure relative to srcDir.
 func copyMarkdownFiles(srcDir, destDir string, sink OutputSink) error {
+	// First pass: count markdown files
+	var total int
+	_ = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if strings.ToLower(filepath.Ext(path)) == ".md" {
+			total++
+		}
+		return nil
+	})
+
+	// Second pass: copy with progress
+	current := 0
 	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -511,6 +539,8 @@ func copyMarkdownFiles(srcDir, destDir string, sink OutputSink) error {
 			return fmt.Errorf("copying %s: %w", relPath, err)
 		}
 
+		current++
+		sink.TaskProgress("Copying docs", current, total)
 		sink.Verbose(fmt.Sprintf("Copied: %s", relPath))
 		return nil
 	})

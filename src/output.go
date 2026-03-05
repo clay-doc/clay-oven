@@ -16,6 +16,7 @@ type OutputSink interface {
 	Verbose(msg string)
 	Confirm(prompt string) bool
 	DownloadProgress(received, total int64)
+	TaskProgress(label string, current, total int)
 	Done()
 }
 
@@ -94,4 +95,17 @@ func (c *CISink) DownloadProgress(received, total int64) {
 func (c *CISink) Done() {
 	fmt.Println()
 	fmt.Println("[DONE] Clay Oven finished.")
+}
+
+// TaskProgress prints progress for generic tasks at 25% milestones.
+func (c *CISink) TaskProgress(label string, current, total int) {
+	if total > 0 {
+		pct := float64(current) / float64(total) * 100
+		milestone := int(pct) / 25
+		prevPct := float64(current-1) / float64(total) * 100
+		prevMilestone := int(prevPct) / 25
+		if milestone != prevMilestone || current >= total {
+			fmt.Printf("[TASK] %s: %.0f%% (%d / %d)\n", label, pct, current, total)
+		}
+	}
 }

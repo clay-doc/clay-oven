@@ -30,6 +30,12 @@ type downloadProgressMsg struct {
 	total    int64
 }
 
+type taskProgressMsg struct {
+	label   string
+	current int
+	total   int
+}
+
 type pipelineDoneMsg struct{}
 
 // ---------------------------------------------------------------------------
@@ -104,6 +110,10 @@ func (t *TUISink) DownloadProgress(received, total int64) {
 	t.program.Send(downloadProgressMsg{received: received, total: total})
 }
 
+func (t *TUISink) TaskProgress(label string, current, total int) {
+	t.program.Send(taskProgressMsg{label: label, current: current, total: total})
+}
+
 func (t *TUISink) Done() {
 	t.program.Send(pipelineDoneMsg{})
 }
@@ -127,6 +137,12 @@ type tuiModel struct {
 	dlTotal    int64
 	dlActive   bool
 
+	// Task progress state
+	taskLabel   string
+	taskCurrent int
+	taskTotal   int
+	taskActive  bool
+
 	// Pipeline state
 	done   bool
 	width  int
@@ -136,10 +152,10 @@ type tuiModel struct {
 func newTUIModel(sink *TUISink) tuiModel {
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(colorCyan)
+	sp.Style = lipgloss.NewStyle().Foreground(colorSecondary)
 
 	prog := progress.New(
-		progress.WithDefaultGradient(),
+		progress.WithGradient(string(colorPrimary), string(colorSecondary)),
 		progress.WithWidth(40),
 	)
 
@@ -207,10 +223,21 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case taskProgressMsg:
+		m.taskActive = true
+		m.taskLabel = msg.label
+		m.taskCurrent = msg.current
+		m.taskTotal = msg.total
+		if msg.total > 0 && msg.current >= msg.total {
+			m.taskActive = false
+		}
+		return m, nil
+
 	case pipelineDoneMsg:
 		m.done = true
 		m.dlActive = false
-		return m, tea.Quit
+		m.taskActive = false
+		return m, nil
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -292,6 +319,19 @@ func (m tuiModel) View() string {
 		b.WriteString("\n")
 	}
 
+	// Task progress bar
+	if m.taskActive && m.taskTotal > 0 {
+		pct := float64(m.taskCurrent) / float64(m.taskTotal)
+		b.WriteString("\n")
+		b.WriteString(fmt.Sprintf("  %s %s... %s  %d/%d",
+			m.spinner.View(),
+			m.taskLabel,
+			m.progress.ViewAs(pct),
+			m.taskCurrent,
+			m.taskTotal))
+		b.WriteString("\n")
+	}
+
 	// Confirm prompt
 	if m.confirmPending {
 		b.WriteString("\n")
@@ -304,7 +344,7 @@ func (m tuiModel) View() string {
 	}
 
 	// Spinner when not done and not confirming
-	if !m.done && !m.confirmPending && !m.dlActive {
+	if !m.done && !m.confirmPending && !m.dlActive && !m.taskActive {
 		b.WriteString(fmt.Sprintf("\n  %s Working...\n", m.spinner.View()))
 	}
 
