@@ -3,21 +3,24 @@ package main
 import (
 	"fmt"
 	"os"
-	//tea "github.com/charmbracelet/bubbletea"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 /*
 Args:
 
-	-h help: Show help message
-	-c config: Specify path to config file (default: clay.yaml)
-	-d docs-dir: Specify path to documents directory (default: ./docs)
-	-o output: Specify output directory (default: ./output)
-	-f force: Overwrite existing files
-	-fm folder-meta: Specify path to folder meta file (default: dir-meta.yaml)
-	-nc no-confirm: Do not ask for confirmation before overwriting files
+	-h   help:         Show help message
+	-c   config:       Specify path to config file (default: clay.yaml)
+	-d   docs-dir:     Specify path to documents directory (default: ./docs)
+	-o   output:       Specify output directory (default: ./output)
+	-fm  folder-meta:  Specify path to folder meta file (default: dir-meta.yaml)
+	-nc  no-confirm:   Do not ask for confirmation before overwriting files
+	-v   verbose:      Enable verbose (debug) output
+	-ci  ci:           Run in CI mode (no interactive TUI, plain output, auto-confirm)
 */
 
+// Arg defines a single CLI argument.
 type Arg struct {
 	ArgName  string
 	ArgDesc  string
@@ -26,27 +29,66 @@ type Arg struct {
 }
 
 func main() {
-	fmt.Printf("\n  ______   __     __  ________  __    __ \n /      \\ |  \\   |  \\|        \\|  \\  |  \\\n|  $$$$$$\\| $$   | $$| $$$$$$$$| $$\\ | $$\n| $$  | $$| $$   | $$| $$__    | $$$\\| $$\n| $$  | $$ \\$$\\ /  $$| $$  \\   | $$$$\\ $$\n| $$  | $$  \\$$\\  $$ | $$$$$   | $$\\$$ $$\n| $$__/ $$   \\$$ $$  | $$_____ | $$ \\$$$$\n \\$$    $$    \\$$$   | $$     \\| $$  \\$$$\n  \\$$$$$$      \\$     \\$$$$$$$$ \\$$   \\$$\n                                         \n")
-
 	args := defineArgs()
-
-	argsRead := getArgs()
+	argsRead := os.Args[1:]
 	parsed := parseArgs(argsRead, args)
+
+	// Set global verbose flag
+	if _, ok := parsed["-v"]; ok {
+		Verbose = true
+	}
 
 	// Help message
 	if _, ok := parsed["-h"]; ok {
-		fmt.Println("Help for clay-oven:")
+		PrintBanner()
+		PrintHeader("Help")
+		fmt.Println()
 		for _, arg := range args {
 			if arg.HasValue {
-				fmt.Printf("  %s, %s <value>: %s\n", arg.ArgName, arg.FullArg, arg.ArgDesc)
+				PrintKeyVal(fmt.Sprintf("%s, %s <value>", arg.ArgName, arg.FullArg), arg.ArgDesc)
 			} else {
-				fmt.Printf("  %s, %s: %s\n", arg.ArgName, arg.FullArg, arg.ArgDesc)
+				PrintKeyVal(fmt.Sprintf("%s, %s", arg.ArgName, arg.FullArg), arg.ArgDesc)
 			}
 		}
+		fmt.Println()
 		return
 	}
 
-	RunOven(parsed)
+	// CI mode is only enabled via the explicit --ci flag,
+	// or when no TTY is available (e.g. IDE run configs, piped output).
+	_, ciMode := parsed["-ci"]
+
+	if !ciMode {
+		// Check if a TTY is actually available for the TUI
+		if f, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err != nil {
+			ciMode = true
+		} else {
+			f.Close()
+		}
+	}
+
+	if ciMode {
+		// CI mode: plain output, no TUI
+		sink := &CISink{}
+		sink.Banner()
+		RunOven(parsed, sink)
+		return
+	}
+
+	// TUI mode: interactive Bubble Tea interface
+	sink := NewTUISink()
+	model := newTUIModel(sink)
+
+	p := tea.NewProgram(model)
+	sink.SetProgram(p)
+
+	// Run the pipeline in a background goroutine
+	go RunOven(parsed, sink)
+
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func parseArgs(argsRead []string, defs []Arg) map[string]string {
@@ -63,7 +105,7 @@ func parseArgs(argsRead []string, defs []Arg) map[string]string {
 		if def, ok := lookup[s]; ok {
 			if def.HasValue {
 				if i+1 >= len(argsRead) {
-					_, _ = fmt.Fprintf(os.Stderr, "missing value for %s\n", s)
+					PrintError(fmt.Sprintf("Missing value for %s", s))
 					os.Exit(1)
 				}
 				res[def.ArgName] = argsRead[i+1]
@@ -72,68 +114,62 @@ func parseArgs(argsRead []string, defs []Arg) map[string]string {
 				res[def.ArgName] = ""
 			}
 		} else {
-			fmt.Printf("Unrecognized argument: %s\n", s)
+			PrintWarn(fmt.Sprintf("Unrecognized argument: %s", s))
 		}
 	}
 
 	return res
 }
 
-func getArgs() []string {
-	return os.Args[1:]
-}
-
 func defineArgs() []Arg {
-	helpArg := Arg{
-		ArgName:  "-h",
-		ArgDesc:  "Show help message",
-		FullArg:  "--help",
-		HasValue: false,
+	return []Arg{
+		{
+			ArgName:  "-h",
+			ArgDesc:  "Show help message",
+			FullArg:  "--help",
+			HasValue: false,
+		},
+		{
+			ArgName:  "-c",
+			ArgDesc:  "Specify path to config file (default: clay.yaml)",
+			FullArg:  "--config",
+			HasValue: true,
+		},
+		{
+			ArgName:  "-d",
+			ArgDesc:  "Specify path to documents directory (default: docs/)",
+			FullArg:  "--docs-dir",
+			HasValue: true,
+		},
+		{
+			ArgName:  "-o",
+			ArgDesc:  "Specify output directory (default: docs-out/)",
+			FullArg:  "--output",
+			HasValue: true,
+		},
+		{
+			ArgName:  "-fm",
+			ArgDesc:  "Specify path to directory meta file (default: dir-meta.yaml)",
+			FullArg:  "--dir-meta",
+			HasValue: true,
+		},
+		{
+			ArgName:  "-nc",
+			ArgDesc:  "Do not ask for confirmation before overwriting files",
+			FullArg:  "--no-confirm",
+			HasValue: false,
+		},
+		{
+			ArgName:  "-v",
+			ArgDesc:  "Enable verbose (debug) output",
+			FullArg:  "--verbose",
+			HasValue: false,
+		},
+		{
+			ArgName:  "-ci",
+			ArgDesc:  "Run in CI mode (plain output, no TUI, auto-confirm)",
+			FullArg:  "--ci",
+			HasValue: false,
+		},
 	}
-
-	configArg := Arg{
-		ArgName:  "-c",
-		ArgDesc:  "Specify path to config file (default: clay.yaml)",
-		FullArg:  "--config",
-		HasValue: true,
-	}
-
-	docsDirArg := Arg{
-		ArgName:  "-d",
-		ArgDesc:  "Specify path to documents directory (default: docs/)",
-		FullArg:  "--docs-dir",
-		HasValue: true,
-	}
-
-	outputArg := Arg{
-		ArgName:  "-o",
-		ArgDesc:  "Specify output directory (default: docs-out/)",
-		FullArg:  "--output",
-		HasValue: true,
-	}
-
-	folderIconsArg := Arg{
-		ArgName:  "-fm",
-		ArgDesc:  "Specify path to folder meta file (default: dir-meta.yaml)",
-		FullArg:  "--folder-meta",
-		HasValue: true,
-	}
-
-	noConfirmArg := Arg{
-		ArgName:  "-nc",
-		ArgDesc:  "Do not ask for confirmation before overwriting files",
-		FullArg:  "--no-confirm",
-		HasValue: false,
-	}
-
-	args := []Arg{
-		helpArg,
-		configArg,
-		docsDirArg,
-		outputArg,
-		folderIconsArg,
-		noConfirmArg,
-	}
-
-	return args
 }

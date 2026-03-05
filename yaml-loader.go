@@ -1,75 +1,81 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/goccy/go-yaml"
 )
 
-func LoadConfigYaml(path string) Config {
+// Config holds the top-level clay.yaml configuration.
+type Config struct {
+	Title          string       `yaml:"title"`
+	Favicon        string       `yaml:"favicon"`
+	BaseURL        string       `yaml:"baseURL"`
+	FontawesomeKit string       `yaml:"fontawesomeKit"`
+	Navbar         NavbarConfig `yaml:"navbar"`
+	Index          IndexConfig  `yaml:"index"`
+	Langs          []string     `yaml:"langs"`
+}
+
+// NavbarConfig describes the navigation bar layout.
+type NavbarConfig struct {
+	Logo   string       `yaml:"logo"`
+	Source LinkConfig   `yaml:"source"`
+	Links  []LinkConfig `yaml:"links"`
+}
+
+// LinkConfig describes a single named link.
+type LinkConfig struct {
+	Name string `yaml:"name"`
+	Icon string `yaml:"icon"`
+	Link string `yaml:"link"`
+}
+
+// IndexConfig describes the landing page content.
+type IndexConfig struct {
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+	Icon        string `yaml:"icon"`
+}
+
+// MetaNode represents directory metadata (name, icon) loaded from dir-meta.yaml.
+type MetaNode struct {
+	Icon     string      `yaml:"icon"`
+	Name     string      `yaml:"name"`
+	Path     string      `yaml:"path"`
+	Children []*MetaNode `yaml:"children"`
+}
+
+// LoadConfigYaml reads and parses the clay config file at the given path.
+func LoadConfigYaml(path string) (Config, error) {
 	file, err := os.ReadFile(path)
 	if err != nil {
-		panic(err)
+		return Config{}, fmt.Errorf("reading config %q: %w", path, err)
 	}
 
 	var config Config
-	err = yaml.Unmarshal(file, &config)
-	if err != nil {
-		panic(err)
+	if err = yaml.Unmarshal(file, &config); err != nil {
+		return Config{}, fmt.Errorf("parsing config %q: %w", path, err)
 	}
 
-	return config
+	return config, nil
 }
 
-func LoadMetaTree(path string) MetaNode {
+// LoadMetaTree reads and parses the directory metadata file at the given path.
+func LoadMetaTree(path string) (MetaNode, error) {
 	root := MetaNode{}
 
 	file, err := os.ReadFile(path)
 	if err != nil {
-		panic(err)
+		return root, fmt.Errorf("reading meta file %q: %w", path, err)
 	}
 
-	var icon []*MetaNode
-	err = yaml.Unmarshal(file, &icon)
-	if err != nil {
-		panic(err)
+	var children []*MetaNode
+	if err = yaml.Unmarshal(file, &children); err != nil {
+		return root, fmt.Errorf("parsing meta file %q: %w", path, err)
 	}
 
-	root.Children = icon
-	return root
-}
-
-type Config struct {
-	Title          string
-	Favicon        string
-	BaseURL        string
-	FontawesomeKit string
-	Navbar         NavbarConfig
-	Index          IndexConfig
-	Langs          []string
-}
-
-type NavbarConfig struct {
-	Logo   string
-	Source LinkConfig
-	Links  []LinkConfig
-}
-
-type LinkConfig struct {
-	Name string
-	Icon string
-	Link string
-}
-
-type IndexConfig struct {
-	Title       string
-	Description string
-	Icon        string
-}
-
-type MetaNode struct {
-	Icon     string
-	Name     string
-	Path     string
-	Children []*MetaNode
+	root.Children = children
+	return root, nil
 }

@@ -2,6 +2,14 @@ package main
 
 import "strings"
 
+// HeaderInfo holds front-matter metadata extracted from a markdown file.
+type HeaderInfo struct {
+	Title string
+	Icon  string
+}
+
+// ParseHeader extracts YAML front matter (between --- delimiters) from
+// markdown content and returns the parsed header info.
 func ParseHeader(content string) HeaderInfo {
 	// Front matter format:
 	// ---
@@ -44,9 +52,4 @@ func ParseHeader(content string) HeaderInfo {
 	}
 
 	return headerInfo
-}
-
-type HeaderInfo struct {
-	Title string
-	Icon  string
 }

@@ -1,12 +1,19 @@
 package main
 
-import "fmt"
+import "strings"
 
-func GenerateStructureFile(structure *StructureFile, dirTree DirNode, metaTree *MetaNode, indentLevel int) {
+// StructureFile holds the lines that make up the generated structure.yaml.
+type StructureFile struct {
+	Lines []string
+}
+
+// GenerateStructureFile recursively walks the directory tree and meta tree,
+// appending formatted lines to the structure file.
+func GenerateStructureFile(structure *StructureFile, dirTree DirNode, metaTree *MetaNode, indentLevel int, sink OutputSink) {
 	for _, entry := range dirTree.Contents {
 		if entry.IsDir {
 			curIconNode := findIconNode(metaTree.Children, entry.PathName)
-			fmt.Println("Processing directory:", entry.PathName)
+			sink.Verbose("Processing directory: " + entry.PathName)
 
 			node := metaTree
 			var name string
@@ -23,11 +30,11 @@ func GenerateStructureFile(structure *StructureFile, dirTree DirNode, metaTree *
 
 			dirLine := generateLine(entry.PathName, name, icon, indentLevel, ":")
 			structure.Lines = append(structure.Lines, dirLine)
-			GenerateStructureFile(structure, entry, node, indentLevel+1)
+			GenerateStructureFile(structure, entry, node, indentLevel+1, sink)
 			continue
 		}
 
-		fmt.Println("Processing file:", entry.PathName)
+		sink.Verbose("Processing file: " + entry.PathName)
 		var name string
 		var icon string
 
@@ -54,20 +61,10 @@ func findIconNode(iconTree []*MetaNode, name string) *MetaNode {
 			return node
 		}
 	}
-
 	return nil
 }
 
 func generateLine(path string, name string, icon string, indentLevel int, end string) string {
-	indent := ""
-
-	for i := 0; i < indentLevel; i++ {
-		indent += "    "
-	}
-
+	indent := strings.Repeat("    ", indentLevel)
 	return indent + "- \"" + path + "#" + name + "#" + icon + "\"" + end + "\n"
-}
-
-type StructureFile struct {
-	Lines []string
 }
