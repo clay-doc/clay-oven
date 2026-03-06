@@ -62,9 +62,11 @@ During a bake, Clay Oven will:
 
 1. Read your configuration file (`clay.yaml` by default).
 2. Scan the documents directory (`./docs` by default) for files and folders.
-3. Generate Clay structure files from the scanned content.
-4. Modify a Clay distribution bundle to include the generated structure and config.
-5. Output the final bundle to the output directory (`./output` by default).
+3. Load directory metadata (`dir-meta.yaml` by default).
+4. Check for environment variable overrides and prompt for confirmation.
+5. Generate Clay structure files from the scanned content.
+6. Download and modify a Clay distribution bundle to include the generated structure and config.
+7. Output the final bundle to the output directory (`./output` by default).
 
 ## CLI Arguments
 
@@ -76,8 +78,10 @@ During a bake, Clay Oven will:
 | `-o`   | Output directory                                         | `./output`       |
 | `-fm`  | Path to folder meta file                                 | `dir-meta.yaml`  |
 | `-nc`  | Skip confirmation prompts before overwriting files       | —                |
+| `-v`   | Enable verbose (debug) output                            | —                |
+| `-ci`  | Run in CI mode (plain output, no TUI, auto-confirm)      | —                |
 
-> **Tip:** Use `-nc` in automated scripts or CI/CD pipelines (e.g. GitHub Actions) to skip interactive prompts.
+> **Tip:** Use `-nc` or `-ci` in automated scripts or CI/CD pipelines (e.g. GitHub Actions) to skip interactive prompts.
 
 ## Environment Variables
 
@@ -90,13 +94,34 @@ These overrides are applied **only to the build artifact** — the original conf
 | `CLAY_BASE_URL`        | `baseURL`         | `CLAY_BASE_URL="/docs"`         |
 | `CLAY_FONTAWESOME_KIT` | `fontawesomeKit`  | `CLAY_FONTAWESOME_KIT="abc123"` |
 
-During the build, Clay Oven will display which environment variables are set and prompt for
-confirmation before applying them (unless `-nc` or `--ci` is used).
+During the build, Clay Oven displays which environment variables are set and which are not
+in a separate **Environment Overrides** section. If any overrides are detected, you will be
+prompted to confirm before they are applied (unless `-nc` or `-ci` is used).
 
 **Example:**
 
 ```bash
 CLAY_BASE_URL="/my-project" CLAY_TITLE="My Project" clay-oven
+```
+
+**Sample output:**
+
+```text
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ▸ Loading
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✔ Config loaded: My Project
+  ✔ Docs directory loaded
+  ✔ Dir meta loaded
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ▸ Environment Overrides
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CLAY_TITLE → My Project (overrides title)
+  CLAY_BASE_URL → /my-project (overrides baseURL)
+  CLAY_FONTAWESOME_KIT → (not set)
+  ✔ Apply environment variable overrides to config? → yes
+  ✔ Environment overrides applied
 ```
 
 ## Directory Metadata
