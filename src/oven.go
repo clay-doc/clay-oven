@@ -65,6 +65,33 @@ func RunOven(args map[string]string, sink OutputSink) {
 		sink.Success("Dir meta loaded")
 	}
 
+	// --- Environment variable overrides ---
+	sink.Header("Environment Overrides")
+
+	overrides := ApplyEnvOverrides(&cfg)
+	anySet := false
+	for _, ov := range overrides {
+		if ov.IsSet {
+			anySet = true
+			sink.KeyVal(ov.EnvVar, fmt.Sprintf("%s (overrides %s)", ov.Value, ov.Field))
+		} else {
+			sink.KeyVal(ov.EnvVar, "(not set)")
+		}
+	}
+
+	if anySet {
+		if !noConfirm {
+			if !sink.Confirm("Apply environment variable overrides to config?") {
+				sink.Warn("Environment overrides cancelled")
+				sink.Done()
+				return
+			}
+		}
+		sink.Success("Environment overrides applied")
+	} else {
+		sink.Info("No environment overrides active")
+	}
+
 	// --- Download clay release ---
 	sink.Header("Download")
 
@@ -155,7 +182,7 @@ func RunOven(args map[string]string, sink OutputSink) {
 		}
 	}
 
-	if err := copyFile(config, configDest); err != nil {
+	if err := WriteConfigYaml(cfg, configDest); err != nil {
 		sink.Error(fmt.Sprintf("Could not copy config: %v", err))
 		sink.Done()
 		return

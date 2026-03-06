@@ -18,6 +18,15 @@ Args:
 	-nc  no-confirm:   Do not ask for confirmation before overwriting files
 	-v   verbose:      Enable verbose (debug) output
 	-ci  ci:           Run in CI mode (no interactive TUI, plain output, auto-confirm)
+
+Environment Variables:
+
+	CLAY_TITLE             Override the "title" field in clay.yaml
+	CLAY_BASE_URL          Override the "baseURL" field in clay.yaml
+	CLAY_FONTAWESOME_KIT   Override the "fontawesomeKit" field in clay.yaml
+
+	These overrides are applied to the build artifact only; the original
+	clay.yaml file is never modified.
 */
 
 // Arg defines a single CLI argument.

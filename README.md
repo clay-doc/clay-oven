@@ -79,6 +79,26 @@ During a bake, Clay Oven will:
 
 > **Tip:** Use `-nc` in automated scripts or CI/CD pipelines (e.g. GitHub Actions) to skip interactive prompts.
 
+## Environment Variables
+
+You can override selected `clay.yaml` fields at build time using environment variables.
+These overrides are applied **only to the build artifact** — the original config file is never modified.
+
+| Variable               | Overrides         | Example                          |
+|------------------------|-------------------|----------------------------------|
+| `CLAY_TITLE`           | `title`           | `CLAY_TITLE="My Docs"`          |
+| `CLAY_BASE_URL`        | `baseURL`         | `CLAY_BASE_URL="/docs"`         |
+| `CLAY_FONTAWESOME_KIT` | `fontawesomeKit`  | `CLAY_FONTAWESOME_KIT="abc123"` |
+
+During the build, Clay Oven will display which environment variables are set and prompt for
+confirmation before applying them (unless `-nc` or `--ci` is used).
+
+**Example:**
+
+```bash
+CLAY_BASE_URL="/my-project" CLAY_TITLE="My Project" clay-oven
+```
+
 ## Directory Metadata
 
 You can optionally provide a `dir-meta.yaml` file to customise folder display names and icons:
